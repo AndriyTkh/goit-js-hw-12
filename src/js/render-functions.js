@@ -35,5 +35,5 @@ export function renderGallery(hits) {
       </li>`;
   });
 
-  gallery.innerHTML = galleryCode;
+  gallery.innerHTML += galleryCode;
 }

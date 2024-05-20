@@ -11,14 +11,32 @@ import * as pixabay from './js/pixabay-api.js';
 import * as imgRender from './js/render-functions.js';
 
 const form = document.querySelector(`.search-form`);
+const loadMoreBtn = document.querySelector('button[type="button"]');
 const loader = document.querySelector(`.loader`);
 let userInput;
+let currentPage;
 let lightbox = new SimpleLightbox('.gallery-link');
 lightbox.options.captionDelay = 250;
 lightbox.options.captionsData = 'alt';
 
 form.addEventListener('submit', event => {
   event.preventDefault();
+
+  document.querySelector('.gallery').innerHTML = '';
+  currentPage = 1;
+
+  loadPage(currentPage);
+});
+
+loadMoreBtn.addEventListener('click', () => {
+  currentPage += 1;
+
+  loadPage(currentPage);
+});
+
+async function loadPage(page) {
+  /* --------- Check user input ----------- */
+
   userInput = form.elements.userSearch.value.trim();
 
   if (!userInput) {
@@ -35,15 +53,15 @@ form.addEventListener('submit', event => {
     return;
   }
 
-  const dataPromise = pixabay.getImgData(userInput);
+  /* ----------- Render gallery ----------- */
+
+  const dataPromise = pixabay.getImgData(userInput, page);
 
   dataPromise
-    .then(data => {
-      const hits = data.hits;
+    .then(response => {
+      const hits = response.data.hits;
 
       if (hits.length == 0) {
-        document.querySelector('.gallery').innerHTML = '';
-
         iziToast.error({
           theme: 'dark',
           position: 'topRight',
@@ -57,16 +75,43 @@ form.addEventListener('submit', event => {
         return;
       }
 
+      /* ----------- Render loader ------------- */
+
       loader.hidden = false;
+      loadMoreBtn.hidden = true;
 
       setTimeout(() => {
         loader.hidden = true;
 
         imgRender.renderGallery(hits);
         lightbox.refresh();
+
+        if (response.data.totalHits <= page * 15) {
+          loadMoreBtn.hidden = true;
+          iziToast.info({
+            theme: 'dark',
+            position: 'topRight',
+            messageColor: '#FFFFFF',
+            backgroundColor: '#0099FF',
+            progressBarColor: '#0071BD',
+            message: `We're sorry, but you've reached the end of search results.`,
+            timeout: 2000,
+          });
+        } else {
+          loadMoreBtn.hidden = false;
+        }
+
+        if (page !== 1) {
+          window.scrollBy({
+            top:
+              document.querySelector('.img-container').getBoundingClientRect()
+                .height * 2,
+            behavior: 'smooth',
+          });
+        }
       }, 500);
     })
     .catch(error => {
       console.error(error);
     });
-});
+}
