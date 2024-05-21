@@ -23,18 +23,19 @@ form.addEventListener('submit', event => {
   event.preventDefault();
 
   document.querySelector('.gallery').innerHTML = '';
+  lightbox.refresh();
   currentPage = 1;
 
-  loadPage(currentPage);
+  loadPage();
 });
 
 loadMoreBtn.addEventListener('click', () => {
   currentPage += 1;
 
-  loadPage(currentPage);
+  loadPage();
 });
 
-async function loadPage(page) {
+async function loadPage() {
   /* --------- Check user input ----------- */
 
   userInput = form.elements.userSearch.value.trim();
@@ -55,63 +56,70 @@ async function loadPage(page) {
 
   /* ----------- Render gallery ----------- */
 
-  const dataPromise = pixabay.getImgData(userInput, page);
+  let response;
 
-  dataPromise
-    .then(response => {
-      const hits = response.data.hits;
+  try {
+    response = await pixabay.getImgData(userInput, currentPage);
+  } catch (error) {
+    console.error(error);
+  }
 
-      if (hits.length == 0) {
-        iziToast.error({
-          theme: 'dark',
-          position: 'topRight',
-          messageColor: '#FFFFFF',
-          backgroundColor: 'red',
-          progressBarColor: '#ff91a4',
-          message: `Sorry, there are no images matching your search query. Please try again!`,
-          title: 'Error',
-          timeout: 2000,
-        });
-        return;
-      }
+  /* --------- Hits check ---------------- */
 
-      /* ----------- Render loader ------------- */
+  const hits = response.data.hits;
+  const totalHits = response.data.totalHits;
 
-      loader.hidden = false;
-      loadMoreBtn.hidden = true;
-
-      setTimeout(() => {
-        loader.hidden = true;
-
-        imgRender.renderGallery(hits);
-        lightbox.refresh();
-
-        if (response.data.totalHits <= page * 15) {
-          loadMoreBtn.hidden = true;
-          iziToast.info({
-            theme: 'dark',
-            position: 'topRight',
-            messageColor: '#FFFFFF',
-            backgroundColor: '#0099FF',
-            progressBarColor: '#0071BD',
-            message: `We're sorry, but you've reached the end of search results.`,
-            timeout: 2000,
-          });
-        } else {
-          loadMoreBtn.hidden = false;
-        }
-
-        if (page !== 1) {
-          window.scrollBy({
-            top:
-              document.querySelector('.img-container').getBoundingClientRect()
-                .height * 2,
-            behavior: 'smooth',
-          });
-        }
-      }, 500);
-    })
-    .catch(error => {
-      console.error(error);
+  if (hits.length == 0) {
+    iziToast.error({
+      theme: 'dark',
+      position: 'topRight',
+      messageColor: '#FFFFFF',
+      backgroundColor: 'red',
+      progressBarColor: '#ff91a4',
+      message: `Sorry, there are no images matching your search query. Please try again!`,
+      title: 'Error',
+      timeout: 2000,
     });
+    return;
+  }
+
+  /* ----------- Render loader ------------- */
+
+  loader.hidden = false;
+  loadMoreBtn.hidden = true;
+
+  setTimeout(() => {
+    setLoading(hits, totalHits);
+  }, 500);
+}
+
+function setLoading(hits, totalHits) {
+  loader.hidden = true;
+
+  imgRender.renderGallery(hits);
+  lightbox.refresh();
+
+  if (totalHits <= currentPage * 15) {
+    loadMoreBtn.hidden = true;
+    iziToast.info({
+      theme: 'dark',
+      position: 'topRight',
+      messageColor: '#FFFFFF',
+      backgroundColor: '#0099FF',
+      progressBarColor: '#0071BD',
+      message: `We're sorry, but you've reached the end of search results.`,
+      timeout: 2000,
+    });
+  } else {
+    loadMoreBtn.hidden = false;
+  }
+
+  if (currentPage !== 1) {
+    window.scrollBy({
+      top:
+        document.querySelector('.img-container').getBoundingClientRect()
+          .height * 2,
+      behavior: 'smooth',
+    });
+  }
 }
