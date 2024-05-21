@@ -70,6 +70,8 @@ async function loadPage() {
   const totalHits = response.data.totalHits;
 
   if (hits.length == 0) {
+    loadMoreBtn.hidden = true;
+
     iziToast.error({
       theme: 'dark',
       position: 'topRight',
